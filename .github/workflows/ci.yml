@@ -74,6 +74,9 @@ jobs:
       - name: Validate Docker image
         run: docker build --platform linux/amd64 --build-arg TARGETARCH=amd64 --tag simple-one-api:ci .
 
+      - name: Verify Docker first-run setup and persistence
+        run: python3 scripts/smoke-docker-setup.py simple-one-api:ci
+
       - name: Check patch formatting
         run: git diff --check
 

@@ -100,7 +100,19 @@ type AdminStatus struct {
 	EnableWeb    bool      `json:"enable_web"`
 }
 
+type SetupStatus struct {
+	Initialized bool `json:"initialized"`
+}
+
 var startedAt = time.Now()
+
+// SetupStatusHandler exposes only whether first-run setup has been completed.
+// The setup UI needs this before it has an admin credential; no configuration
+// values or secrets are returned from this endpoint.
+func SetupStatusHandler(c *gin.Context) {
+	c.Header("Cache-Control", "no-store")
+	c.JSON(http.StatusOK, SetupStatus{Initialized: strings.TrimSpace(config.CurrentAPIKey()) != ""})
+}
 
 func AdminStatusHandler(c *gin.Context) {
 	conf := config.CurrentConfiguration()

@@ -8,6 +8,23 @@
 
 项目不负责供应商计费或账户余额统计。界面中的容量来自本地滚动限流窗口，不等同于供应商账单；模型名称、价格、免费额度和上游接口以各供应商当前官方文档为准。
 
+## 5 分钟快速开始
+
+首次安装无需准备 `config.json`：
+
+```sh
+docker run -d --name simple-one-api -p 9090:9090 \
+  -v simple-one-api-data:/app/data \
+  -e SIMPLE_ONE_API_DB=/app/data/config.db \
+  --restart unless-stopped \
+  ghcr.io/fruitbars/simple-one-api:latest
+docker logs --tail 100 simple-one-api
+```
+
+打开 `http://服务器地址:9090/`，按 `/setup` 向导输入日志中的临时初始化密钥、设置永久主密钥、添加 Provider。点击“测试连接”验证第一个模型，再保存配置，进入 Chat 发出第一条消息。
+
+完整操作、密钥区别、客户端填写示例和常见问题见 **[5 分钟快速开始](docs/quick-start.md)**。已有 Compose 部署升级时请保留原有 `./data` 挂载，避免切换到空数据卷。
+
 ## 当前能力
 
 - `/v1/chat/completions`、`/v1/responses`、`/v1/messages`、`GET /v1/models`、`GET /v1/models/:model` 和 Embeddings 接口。
@@ -30,7 +47,7 @@
 
 ### 直接运行
 
-默认读取可执行文件同目录的 `config.json`，也可以传入 JSON/YAML 路径：
+默认读取当前工作目录下的 `config.json`（兼容回退到 `config/config.json`）；默认文件缺失时使用内置配置启动，可直接进入初始化向导。也可以传入已有 JSON/YAML 路径：
 
 ```sh
 ./simple-one-api
@@ -48,7 +65,7 @@
 }
 ```
 
-启动后访问 `http://localhost:9090/` 进入配置台，访问 `http://localhost:9090/chat` 进入聊天界面。兼容路径 `/admin` 也会打开配置台。
+启动后访问 `http://localhost:9090/`。首次启动且尚未设置主 `api_key` 时，页面会自动进入 `/setup` 初始化向导，可设置永久主密钥并添加第一个 Provider；完成后进入配置台。访问 `http://localhost:9090/chat` 可进入聊天界面，兼容路径 `/admin` 也会打开配置台。
 
 ### Admin 与 SQLite
 
@@ -115,13 +132,14 @@ simple-one-api 会在请求发往上游前做一次保守 Token 估算，并为�
 docker pull ghcr.io/fruitbars/simple-one-api:latest
 
 docker run -d --name simple-one-api -p 9090:9090 \
-  -v /absolute/path/config.json:/app/config.json:ro \
-  -v /absolute/path/data:/app/data \
+  -v simple-one-api-data:/app/data \
   -e SIMPLE_ONE_API_DB=/app/data/config.db \
   ghcr.io/fruitbars/simple-one-api:latest
 ```
 
-正式环境建议将 `latest` 替换为固定版本，例如 `v0.12.1`。镜像同时支持 `linux/amd64` 和 `linux/arm64`，内置 `/healthz` 健康检查。仓库内的 `docker-compose.yml` 默认挂载当前目录的 `config.json` 和 `data/`；配置文件只读挂载时，SQLite 必须指向可写数据目录。
+正式环境建议将 `latest` 替换为支持所需功能的固定发布版本。镜像同时支持 `linux/amd64` 和 `linux/arm64`，内置 `/healthz` 健康检查。仓库内的 `docker-compose.yml` 默认使用命名数据卷，不需要 `config.json`，可直接运行 `docker compose up -d`。
+
+已有 Compose 部署应保留 `./data:/app/data`，直到完成数据迁移。需要从文件导入时，可额外挂载一个**已存在**的配置文件到 `/app/config.json:ro`；数据库仍须放在可写目录。详见[首次部署与迁移说明](docs/quick-start.md#docker推荐)。
 
 其他部署方式：[systemd](docs/startup/systemd_startup.md) · [nohup](docs/startup/nohup_startup.md)。
 

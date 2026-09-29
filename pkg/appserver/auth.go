@@ -78,7 +78,7 @@ func announceAdminBootstrap() {
 			return
 		}
 		log.Printf("Admin temporary bootstrap token: %s", generatedAdminBootstrapToken)
-		log.Println("Open /admin, enter this token, then configure and publish a permanent api_key")
+		log.Println("Open /setup, enter this token, then configure and publish a permanent api_key")
 	})
 }
 

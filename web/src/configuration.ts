@@ -1,4 +1,5 @@
 import type { ConfigurationDocument } from "./api/admin";
+import { randomID } from "./randomID";
 
 export interface LimitConfiguration {
   qps?: number;
@@ -171,7 +172,7 @@ export function scalarCredentialEntries(credentials: Record<string, unknown> | u
 
 export function createService(serviceName: string): ServiceConfiguration {
   return {
-    id: crypto.randomUUID(),
+    id: randomID(),
     provider: serviceName,
     upstream_protocol: "auto",
     enabled: true,

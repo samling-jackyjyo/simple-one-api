@@ -2,6 +2,8 @@
 
 JSON 和 YAML 都可以作为启动时的导入格式。启动后 SQLite 是运行时配置仓库；配置台每次保存都会写入规范化快照并原子更新运行时配置。
 
+第一次部署建议先阅读[5 分钟快速开始](quick-start.md)，本页用于查询字段和运行机制。
+
 ## 最小 Web 配置
 
 ```json
@@ -24,14 +26,16 @@ JSON 和 YAML 都可以作为启动时的导入格式。启动后 SQLite 是运�
 }
 ```
 
-首次没有 `api_key` 时，本机可以直接打开 `/` 或 `/admin`。远程访问需要启动日志中的临时 bootstrap token，进入后台后在“基础设置”填写正式 `api_key` 并保存配置。
+首次没有 `api_key` 时，访问 `/` 或 `/admin` 会自动进入 `/setup` 初始化向导。本机可直接配置；远程访问需要先输入启动日志中的临时 bootstrap token。向导会设置正式 `api_key`，并可同时添加第一个 Provider；配置发布后临时 token 立即失效。已经完成初始化时访问 `/setup` 会返回配置台。
+
+向导支持对当前草稿“测试连接”：使用受 Admin 鉴权保护的 `POST /api/admin/providers/test`，从服务器向第一个模型发送一次非流式短请求，超时 20 秒，最多请求 32 个输出 Token（仍可能产生上游费用）。支持向导预设的自动协议及显式 Chat Completions、Responses、Anthropic Messages 协议。测试使用当前服务器代理策略，不发布草稿、不进入号池调度、不写入使用统计；结果只证明本次单模型请求的状态。修改地址、协议、密钥或测试模型后需重新测试；失败或跳过测试也可保存，界面会明确标记“未验证”。
 
 ## 顶层字段
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
 | `server_port` | string | `:9090` 或 `127.0.0.1:9090`，端口范围 1–65535。变更需要重启。 |
-| `enable_web` | boolean | 是否启用内嵌 Web 与 Admin，变更需要重启。 |
+| `enable_web` | boolean | 是否启用内嵌 Web 与 Admin，省略时默认启用；明确设为 `false` 可关闭。变更需要重启。 |
 | `api_key` | string | 网关主密钥，同时保护 `/api/admin/*` 和需要鉴权的 OpenAI 兼容接口。 |
 | `api_keys` | array | 可选的细粒度客户端密钥与模型权限。 |
 | `debug` | boolean | 调试模式，变更需要重启。 |

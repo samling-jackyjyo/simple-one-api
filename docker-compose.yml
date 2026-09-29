@@ -5,8 +5,10 @@ services:
     ports:
       - "9090:9090"
     volumes:
-      - ./config.json:/app/config.json:ro
-      - ./data:/app/data
+      - simple-one-api-data:/app/data
     environment:
       SIMPLE_ONE_API_DB: /app/data/config.db
     restart: unless-stopped
+
+volumes:
+  simple-one-api-data:

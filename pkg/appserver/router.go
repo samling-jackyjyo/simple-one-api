@@ -57,6 +57,7 @@ func registerAPI(router *gin.Engine, options Options) {
 	router.GET("/healthz", func(context *gin.Context) {
 		context.JSON(http.StatusOK, gin.H{"status": "ok"})
 	})
+	router.GET("/api/setup/status", apis.SetupStatusHandler)
 	router.GET("/v1/models", requireAPIAccess(), apis.ModelsHandler)
 	router.GET("/v1/models/:model", requireAPIAccess(), apis.RetrieveModelHandler)
 	router.POST("/v2/translate", requireAPIAccess(), translation.TranslateV2Handler)
@@ -72,6 +73,7 @@ func registerAPI(router *gin.Engine, options Options) {
 	admin.GET("/config", apis.AdminConfigHandler)
 	admin.GET("/config/draft", apis.AdminConfigDraftHandler)
 	admin.POST("/config/validate", apis.AdminConfigValidateHandler)
+	admin.POST("/providers/test", limitRequestBody(64<<10), apis.AdminProviderTestHandler)
 	admin.POST("/config/revisions", apis.AdminConfigPublishHandler)
 	admin.GET("/config/revisions", apis.AdminConfigRevisionsHandler)
 	admin.GET("/logs", apis.AdminLogsHandler)

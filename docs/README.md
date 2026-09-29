@@ -3,6 +3,7 @@
 ## 使用与配置
 
 - [项目总览](../README.md)
+- [5 分钟快速开始（部署、初始化、首次调用与排障）](./quick-start.md)
 - [配置参考](./configuration-reference.md)
 - [桌面端开发](../cmd/desktop/README.md)
 - [样例配置](../samples/)

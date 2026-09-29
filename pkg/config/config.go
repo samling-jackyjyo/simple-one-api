@@ -215,7 +215,9 @@ func createModelToServiceMap(config Configuration) (map[string][]ModelDetails, m
 func InitConfig(configName string) error {
 
 	// 解析 JSON 数据到结构体
-	var conf Configuration
+	// Keep older configuration files web-enabled when they predate the
+	// enable_web field. An explicit false value in JSON or YAML still wins.
+	conf := Configuration{EnableWeb: true}
 	originalConfigName := configName
 
 	configAbsolutePath, err := utils.ResolveRelativePathToAbsolute(configName)

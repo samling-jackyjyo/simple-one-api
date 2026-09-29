@@ -32,6 +32,26 @@ export interface PublishResponse {
   auth_changed: boolean;
 }
 
+export interface SetupStatusResponse {
+  initialized: boolean;
+}
+
+export interface ProviderTestRequest {
+  provider: string;
+  upstream_protocol: string;
+  server_url: string;
+  api_key: string;
+  model: string;
+}
+
+export interface ProviderTestResult {
+  ok: boolean;
+  code: string;
+  message: string;
+  upstream_status?: number;
+  latency_ms: number;
+}
+
 export interface LiveLogEntry {
   id: number;
   time: string;
@@ -181,6 +201,18 @@ async function adminRequest<T>(path: string, apiKey: string, init: RequestInit =
     throw new AdminRequestError("配置服务返回了无效响应，请确认桌面后端已启动。", response.status);
   }
   return (await response.json()) as T;
+}
+
+export function getSetupStatus(): Promise<SetupStatusResponse> {
+  return adminRequest("/api/setup/status", "", { cache: "no-store" });
+}
+
+export function testProvider(apiKey: string, draft: ProviderTestRequest, signal?: AbortSignal): Promise<ProviderTestResult> {
+  return adminRequest("/api/admin/providers/test", apiKey, {
+    method: "POST",
+    body: JSON.stringify(draft),
+    signal,
+  });
 }
 
 export function getConfigDraft(apiKey: string): Promise<ConfigDraftResponse> {

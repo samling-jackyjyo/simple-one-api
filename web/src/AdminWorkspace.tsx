@@ -60,6 +60,7 @@ import {
   type ServiceConfiguration,
 } from "./configuration";
 import type { SourceFormat } from "./sourceDocument";
+import { randomID } from "./randomID";
 import StatisticsPanel from "./StatisticsPanel";
 
 const ConfigurationSourceEditor = lazy(() => import("./ConfigurationSourceEditor"));
@@ -926,7 +927,7 @@ function CredentialPoolEditor({
     <div className="credential-pool-section">
       <div className="subsection-heading">
         <div><strong>API Key 号池</strong><span>{pool.length > 0 ? `${pool.length} 个 Key，按当前负载策略轮询并自动跳过冷却中的 Key。` : "可添加多组 API Key，失败时自动切换。"}</span></div>
-        <button onClick={() => onChange([...pool, { id: crypto.randomUUID(), name: `Key ${pool.length + 1}`, enabled: true, api_key: "", limit: {} }])}><Plus size={14} />添加 Key</button>
+        <button onClick={() => onChange([...pool, { id: randomID(), name: `Key ${pool.length + 1}`, enabled: true, api_key: "", limit: {} }])}><Plus size={14} />添加 Key</button>
       </div>
       {pool.length === 0 ? <div className="credential-empty">当前使用单个 Provider API Key。添加 Key 后会启用号池轮询。</div> : (
         <div className="credential-pool-list">

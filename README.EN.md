@@ -8,6 +8,23 @@ Expose multiple LLM providers through one gateway with OpenAI Chat Completions, 
 
 This project does not track provider billing or account balances. Capacity shown in the UI comes from the local rolling limiter window and is not a provider bill. Model names, prices, free tiers, and upstream endpoints should always be checked against the provider's current official documentation.
 
+## Quick start
+
+No `config.json` is needed for a new installation:
+
+```sh
+docker run -d --name simple-one-api -p 9090:9090 \
+  -v simple-one-api-data:/app/data \
+  -e SIMPLE_ONE_API_DB=/app/data/config.db \
+  --restart unless-stopped \
+  ghcr.io/fruitbars/simple-one-api:latest
+docker logs --tail 100 simple-one-api
+```
+
+Open `http://your-server:9090/`. In `/setup`, enter the temporary token from the log if prompted, create and copy a permanent gateway key, then add a provider using its upstream key, URL, and model ID. **Test connection** sends one short generation request from the server to the first model (20-second timeout; provider charges may apply). Save, open Chat, and send a message. A failed or skipped test is clearly marked and does not prevent saving.
+
+Use `http://your-server:9090/v1` as an OpenAI-compatible client's Base URL, the **gateway key** as its API Key, and a configured model ID. The provider's upstream key stays in the provider configuration. See the [step-by-step guide and troubleshooting (Chinese)](docs/quick-start.md).
+
 ## Highlights
 
 - `/v1/chat/completions`, `/v1/responses`, `/v1/messages`, `GET /v1/models`, `GET /v1/models/:model`, and Embeddings endpoints.
@@ -29,7 +46,7 @@ See the [configuration reference](docs/configuration-reference.md) for the autho
 
 ### Server
 
-The server reads `config.json` by default. Pass a JSON or YAML path to override it:
+The server reads `config.json` from the current working directory (with a fallback to `config/config.json`), using built-in Web-enabled defaults when both are missing. You can also pass the path to an existing JSON or YAML file:
 
 ```sh
 ./simple-one-api
@@ -47,7 +64,7 @@ Minimal Web configuration:
 }
 ```
 
-Open `http://localhost:9090/` for configuration and `http://localhost:9090/chat` for chat. The compatibility path `/admin` also opens configuration.
+Open `http://localhost:9090/` after startup. When no primary `api_key` has been configured, the UI automatically opens the `/setup` wizard to create a permanent key and add the first provider, then continues to the configuration console. Use `http://localhost:9090/chat` for chat; the compatibility path `/admin` also opens configuration.
 
 ### Admin and SQLite
 
@@ -112,13 +129,14 @@ The boundary is intentional: key and key-model limits can use another key's capa
 docker pull ghcr.io/fruitbars/simple-one-api:latest
 
 docker run -d --name simple-one-api -p 9090:9090 \
-  -v /absolute/path/config.json:/app/config.json:ro \
-  -v /absolute/path/data:/app/data \
+  -v simple-one-api-data:/app/data \
   -e SIMPLE_ONE_API_DB=/app/data/config.db \
   ghcr.io/fruitbars/simple-one-api:latest
 ```
 
-For production, replace `latest` with a fixed version such as `v0.12.1`. The image supports both `linux/amd64` and `linux/arm64` and includes a `/healthz` health check. The bundled `docker-compose.yml` mounts `config.json` and `data/` from the current directory. If configuration is read-only, SQLite must point to the writable data directory.
+For production, choose a fixed release supporting the features you need. The image supports both `linux/amd64` and `linux/arm64` and includes a `/healthz` health check. The bundled `docker-compose.yml` now uses a named data volume: run `docker compose up -d` without preparing a config file. Compose prefixes the volume with its project name; this differs from the volume used by the `docker run` example.
+
+**Existing Compose deployments:** retain `./data:/app/data` until you have backed up and migrated your data; switching directly to the new empty volume would open first-run setup again. To import a file, additionally mount an **existing** JSON/YAML file at `/app/config.json:ro`. Keep SQLite in a directory writable by the container's `app` user. `docker compose down` preserves data; `docker compose down -v` removes it.
 
 Other deployment options: [systemd](docs/startup/systemd_startup.md) · [nohup](docs/startup/nohup_startup.md).
 

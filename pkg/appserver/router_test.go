@@ -18,7 +18,7 @@ import (
 
 func TestEmbeddedWebRoutes(t *testing.T) {
 	router := NewRouterWithOptions(Options{EnableWeb: true})
-	for _, target := range []string{"/", "/admin", "/chat", "/settings"} {
+	for _, target := range []string{"/", "/admin", "/chat", "/setup", "/settings"} {
 		request := httptest.NewRequest(http.MethodGet, target, nil)
 		request.Header.Set("Accept", "text/html")
 		response := httptest.NewRecorder()
@@ -33,6 +33,26 @@ func TestEmbeddedWebRoutes(t *testing.T) {
 	}
 }
 
+func TestSetupStatusIsPublicAndContainsNoConfiguration(t *testing.T) {
+	setTestConfiguration(t, config.Configuration{})
+	router := NewRouterWithOptions(Options{})
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/api/setup/status", nil))
+	if response.Code != http.StatusOK || response.Body.String() != `{"initialized":false}` {
+		t.Fatalf("unexpected first-run setup status: %d %s", response.Code, response.Body.String())
+	}
+
+	setTestConfiguration(t, config.Configuration{APIKey: "must-not-leak"})
+	response = httptest.NewRecorder()
+	router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/api/setup/status", nil))
+	if response.Code != http.StatusOK || response.Body.String() != `{"initialized":true}` {
+		t.Fatalf("unexpected initialized setup status: %d %s", response.Code, response.Body.String())
+	}
+	if strings.Contains(response.Body.String(), "must-not-leak") {
+		t.Fatal("setup status leaked the configured API key")
+	}
+}
+
 func TestWebCanBeDisabled(t *testing.T) {
 	router := NewRouterWithOptions(Options{EnableWeb: false})
 	request := httptest.NewRequest(http.MethodGet, "/", nil)
@@ -40,6 +60,38 @@ func TestWebCanBeDisabled(t *testing.T) {
 	router.ServeHTTP(response, request)
 	if response.Code != http.StatusNotFound {
 		t.Fatalf("unexpected status: %d", response.Code)
+	}
+}
+
+func TestProviderProbeRequiresAdminAndLimitsDraftSize(t *testing.T) {
+	t.Setenv(adminBootstrapEnvironment, "bootstrap-probe-test")
+	for _, key := range []string{"", "admin-probe-test"} {
+		setTestConfiguration(t, config.Configuration{APIKey: key})
+		router := NewRouterWithOptions(Options{})
+		request := httptest.NewRequest(http.MethodPost, "http://remote.example/api/admin/providers/test", strings.NewReader(`{}`))
+		response := httptest.NewRecorder()
+		router.ServeHTTP(response, request)
+		if response.Code != http.StatusUnauthorized {
+			t.Fatalf("unprotected probe: %d", response.Code)
+		}
+		credential := key
+		if credential == "" {
+			credential = "bootstrap-probe-test"
+		}
+		request = httptest.NewRequest(http.MethodPost, "http://remote.example/api/admin/providers/test", strings.NewReader(`{}`))
+		request.Header.Set("Authorization", "Bearer "+credential)
+		response = httptest.NewRecorder()
+		router.ServeHTTP(response, request)
+		if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), "invalid_config") {
+			t.Fatalf("unexpected authorized probe: %d %s", response.Code, response.Body.String())
+		}
+		request = httptest.NewRequest(http.MethodPost, "http://remote.example/api/admin/providers/test", strings.NewReader(`{"api_key":"`+strings.Repeat("x", 65<<10)+`"}`))
+		request.Header.Set("Authorization", "Bearer "+credential)
+		response = httptest.NewRecorder()
+		router.ServeHTTP(response, request)
+		if response.Code != http.StatusBadRequest {
+			t.Fatalf("oversized draft accepted: %d", response.Code)
+		}
 	}
 }
 

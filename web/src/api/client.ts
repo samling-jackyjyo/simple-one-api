@@ -1,4 +1,5 @@
 import type { ChatMessage, ModelsResponse } from "../types";
+import { randomID } from "../randomID";
 
 interface ChatChunk {
   choices?: Array<{
@@ -100,7 +101,7 @@ export async function desktopStreamChat(options: StreamChatOptions): Promise<Tok
     throw new Error("桌面流式接口不可用，请重新编译并启动桌面应用");
   }
 
-  const requestID = crypto.randomUUID();
+  const requestID = randomID();
   const eventName = `simple-one-api:chat:${requestID}`;
   const decoder = new TextDecoder();
   let buffer = "";

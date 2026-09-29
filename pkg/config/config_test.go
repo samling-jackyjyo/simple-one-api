@@ -56,8 +56,39 @@ func TestInitConfigUsesBuiltInDefaultsWhenDefaultFileIsMissing(t *testing.T) {
 	if got := CurrentServerPort(); got != ":9090" {
 		t.Fatalf("server port = %q, want built-in default", got)
 	}
+	if !CurrentConfiguration().EnableWeb {
+		t.Fatal("built-in default configuration must enable the web UI")
+	}
 	if _, err := os.Stat(filepath.Join(directory, "config.json")); !os.IsNotExist(err) {
 		t.Fatalf("missing config startup must not create config.json, stat err=%v", err)
+	}
+}
+
+func TestInitConfigDefaultsMissingEnableWebToTrue(t *testing.T) {
+	previous := *CurrentConfiguration()
+	previousPath := CurrentConfigPath()
+	t.Cleanup(func() { _ = ApplyConfiguration(previous, previousPath) })
+
+	for _, test := range []struct {
+		name    string
+		content string
+		want    bool
+	}{
+		{name: "missing", content: `{"server_port":":19090","services":{}}`, want: true},
+		{name: "explicit false", content: `{"server_port":":19090","enable_web":false,"services":{}}`, want: false},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), "config.json")
+			if err := os.WriteFile(path, []byte(test.content), 0o600); err != nil {
+				t.Fatalf("write config: %v", err)
+			}
+			if err := InitConfig(path); err != nil {
+				t.Fatalf("init config: %v", err)
+			}
+			if got := CurrentConfiguration().EnableWeb; got != test.want {
+				t.Fatalf("enable_web = %v, want %v", got, test.want)
+			}
+		})
 	}
 }
 

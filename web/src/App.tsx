@@ -21,6 +21,7 @@ import {
 import { FormEvent, lazy, Suspense, useEffect, useRef, useState } from "react";
 import { getModels, streamChat } from "./api/client";
 import { AdminWorkspace } from "./AdminWorkspace";
+import { getSetupStatus } from "./api/admin";
 import {
   activeConversationStorageKey,
   conversationTitle,
@@ -31,6 +32,8 @@ import {
 } from "./conversationStore";
 import { takeDisplayChunk } from "./streamDisplay";
 import type { ChatMessage } from "./types";
+import { SetupWizard } from "./SetupWizard";
+import { randomID } from "./randomID";
 
 const MarkdownMessage = lazy(() => import("./MarkdownMessage"));
 
@@ -41,7 +44,7 @@ const welcomePrompts = [
 ];
 
 function id(): string {
-  return crypto.randomUUID();
+  return randomID();
 }
 
 function formatDuration(durationMs: number): string {
@@ -49,9 +52,11 @@ function formatDuration(durationMs: number): string {
 }
 
 export function App() {
-  const [surface, setSurface] = useState<"chat" | "admin">(() =>
-    window.location.pathname.startsWith("/chat") ? "chat" : "admin",
-  );
+  const [surface, setSurface] = useState<"chat" | "admin" | "setup">(() => {
+    if (window.location.pathname.startsWith("/setup")) return "setup";
+    return window.location.pathname.startsWith("/chat") ? "chat" : "admin";
+  });
+  const [checkingSetup, setCheckingSetup] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [theme, setTheme] = useState<"light" | "dark">(() =>
@@ -112,9 +117,33 @@ export function App() {
   }, []);
 
   useEffect(() => {
-    const onPopState = () => setSurface(window.location.pathname.startsWith("/chat") ? "chat" : "admin");
+    const onPopState = () => {
+      if (window.location.pathname.startsWith("/setup")) setSurface("setup");
+      else setSurface(window.location.pathname.startsWith("/chat") ? "chat" : "admin");
+    };
     window.addEventListener("popstate", onPopState);
     return () => window.removeEventListener("popstate", onPopState);
+  }, []);
+
+  useEffect(() => {
+    let disposed = false;
+    void getSetupStatus()
+      .then(({ initialized }) => {
+        if (disposed) return;
+        if (!initialized) {
+          if (!window.location.pathname.startsWith("/setup")) window.history.replaceState({}, "", "/setup");
+          setSurface("setup");
+        } else if (window.location.pathname.startsWith("/setup")) {
+          window.history.replaceState({}, "", "/");
+          setSurface("admin");
+        }
+      })
+      .catch(() => {
+        // Keep the requested surface available when an older or temporarily
+        // unavailable backend does not provide the setup status endpoint.
+      })
+      .finally(() => { if (!disposed) setCheckingSetup(false); });
+    return () => { disposed = true; };
   }, []);
 
   useEffect(() => {
@@ -208,6 +237,12 @@ export function App() {
     setSurface(next);
     setSidebarOpen(false);
     if (next === "chat") void refreshModels();
+  }
+
+  function finishSetup() {
+    window.history.replaceState({}, "", "/");
+    setCheckingSetup(false);
+    setSurface("admin");
   }
 
   async function submit(event?: FormEvent, prompt = draft) {
@@ -343,6 +378,14 @@ export function App() {
     } finally {
       abortRef.current = null;
     }
+  }
+
+  if (checkingSetup) {
+    return <div className="app-loading">正在检查服务器配置…</div>;
+  }
+
+  if (surface === "setup") {
+    return <SetupWizard apiKey={apiKey} onApiKeyChange={saveApiKey} onComplete={finishSetup} />;
   }
 
   if (surface === "admin") {
